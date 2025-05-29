@@ -1,14 +1,20 @@
-import itertools
-from typing import Literal, cast
+# PARADIGMAS DE PROGRAMAÇÃO - ATIVIDADE 1
+# Definição de funções recursivas
 
-type Caminho = list[Literal["baixo", "direita"]]
-type Matriz = list[list[int]]
-
-
-def extrair(lista: list):
+def cabeca[T](lista: list[T]) -> T:
     if not lista:
         raise ValueError("A lista não pode estar vazia.")
-    return lista[0], lista[1:]
+    return lista[0]
+
+
+def cauda[T](lista: list[T]) -> list[T]:
+    if not lista:
+        raise ValueError("A lista não pode estar vazia.")
+    return lista[1:]
+
+
+def extrair[T](lista: list[T]) -> tuple[T, list[T]]:
+    return cabeca(lista), cauda(lista)
 
 
 # Questão 1
@@ -23,7 +29,7 @@ def somar(lista: list) -> float | int:
 def tamanho_lista(lista: list) -> int:
     if not lista:
         return 0
-    _, tail = extrair(lista)
+    tail = cauda(lista)
     return 1 + tamanho_lista(tail)
 
 
@@ -78,91 +84,135 @@ def somar_pares(lista: list) -> int:
         return head + somar_pares(tail)
     return somar_pares(tail)
 
+type Caminho = list[str]
+type Matriz = list[list[int]]
+
+# Questões 8 e 9
+def menor_custo(
+    matriz: Matriz, memo: dict[tuple[int, int], tuple[int, Caminho]] = dict()
+) -> tuple[int, Caminho]:
+    if matriz == [] or cabeca(matriz) == []:
+        raise ValueError("A matriz não pode estar vazia.")
+
+    x = len(cabeca(matriz))
+    y = len(matriz)
+
+    if (x, y) in memo:
+        return memo[(x, y)]
+
+    "Se a matriz tem apenas um elemento. Ex: [[1]]"
+    if len(matriz) == 1 and len(cabeca(matriz)) == 1:
+        return cabeca(cabeca(matriz)), []
+
+    "Se a matriz tem apenas uma linha. Ex: [[1, 2, 3]]"
+    if len(matriz) == 1:
+        custo, caminho = menor_custo([cauda(cabeca(matriz))])
+        custo += cabeca(cabeca(matriz))
+        caminho = ["direita"] + caminho
+        memo[(x, y)] = (custo, caminho)
+        return custo, caminho
+
+    """
+    Se a matriz tem apenas uma coluna. Ex: [[1],
+                                            [2],
+                                            [3]]
+    """
+    if len(cabeca(matriz)) == 1:
+        custo, caminho = menor_custo(cauda(matriz))
+        custo += cabeca(cabeca(matriz))
+        caminho = ["baixo"] + caminho
+        memo[(x, y)] = (custo, caminho)
+        return custo, caminho
+
+    custo_direita, caminho_direita = menor_custo([linha[1:] for linha in matriz])
+    caminho_direita = ["direita"] + caminho_direita
+    custo_direita += cabeca(cabeca(matriz))
+    custo_baixo, caminho_baixo = menor_custo(cauda(matriz))
+    caminho_baixo = ["baixo"] + caminho_baixo
+    custo_baixo += cabeca(cabeca(matriz))
+    if custo_direita < custo_baixo:
+        memo[(x, y)] = (custo_direita, caminho_direita)
+        return custo_direita, caminho_direita
+    else:
+        memo[(x, y)] = (custo_baixo, caminho_baixo)
+        return custo_baixo, caminho_baixo
+
+# Funções auxiliares para testes
+
+def gerar_matriz(n: int, m: int) -> Matriz:
+    import random as rd
+    if n <= 0 or m <= 0:
+        raise ValueError("As dimensões da matriz devem ser maiores que zero.")
+    return [[rd.randint(10, 20) for _ in range(m)] for _ in range(n)]
+
 
 def printar_caminho(matriz: Matriz, caminho: Caminho):
-    # Criar uma matriz de marcação do mesmo tamanho preenchida com espaços
-    altura = tamanho_lista(matriz)
-    largura = tamanho_lista(matriz[0]) if matriz else 0
-    posicao = [0, 0]
-    
-    # Criar uma cópia da matriz para marcar o caminho
-    matriz_caminho = []
-    for i in range(altura):
-        linha = []
-        for j in range(largura):
-            linha.append(str(matriz[i][j]).rjust(2))
-        matriz_caminho.append(linha)
-    
-    # Marcar posição inicial
-    matriz_caminho[0][0] = "→" + str(matriz[0][0]).rjust(1)
-    
-    # Marcar o caminho
-    for movimento in caminho:
-        if movimento == "baixo":
-            posicao[0] += 1
-            matriz_caminho[posicao[0]][posicao[1]] = "↓" + str(matriz[posicao[0]][posicao[1]]).rjust(1)
-        elif movimento == "direita":
-            posicao[1] += 1
-            matriz_caminho[posicao[0]][posicao[1]] = "→" + str(matriz[posicao[0]][posicao[1]]).rjust(1)
-    
-    # Imprimir a matriz com o caminho
-    print("\nCaminho na matriz:")
-    for linha in matriz_caminho:
+    """Printa a matriz com o caminho marcado.
+    Copia a matriz original, transforma os valores em string, troca os valores do caminho por → ou ↓, pinta o caminho de vermelho e imprime.
+    """
+    from colorama import Style, Back
+    if not matriz or not caminho:
+        print("Matriz vazia ou caminho vazio.")
+        return
+
+    matriz_copia = [list(map(lambda e: str(e) + " ", linha)) for linha in matriz]
+    x, y = 0, 0
+
+    for direcao in caminho:
+        if direcao == "direita":
+            matriz_copia[x][y] = (
+                Back.RED + matriz_copia[x][y][:-1] + "→" + Style.RESET_ALL
+            )
+            y += 1
+        elif direcao == "baixo":
+            matriz_copia[x][y] = (
+                Back.RED + matriz_copia[x][y][:-1] + "↓" + Style.RESET_ALL
+            )
+            x += 1
+
+    matriz_copia[-1][-1] = Back.RED + "F" + Style.RESET_ALL
+
+    for linha in matriz_copia:
         print(" ".join(linha))
-    print()
 
 
-# Questão 8
-def caminho_minimo(matriz: Matriz) -> Caminho:
-    altura = tamanho_lista(matriz)
-    largura = tamanho_lista(matriz[0]) if matriz else 0
-    caminho_base = ["baixo"] * (altura - 1) + ["direita"] * (largura - 1)
-    possibilidades = list(set(itertools.permutations(caminho_base)))
-    custo_minimo = float("inf")
-    melhor_caminho: Caminho = []
-    for possibilidade in possibilidades:
-        posicao = [0, 0]
-        custo = matriz[0][0]
-        for movimento in possibilidade:
-            if custo >= custo_minimo:
-                break
-            if movimento == "baixo":
-                posicao[0] += 1
-            elif movimento == "direita":
-                posicao[1] += 1
-            if posicao[0] >= altura or posicao[1] >= largura:
-                break
-            custo += matriz[posicao[0]][posicao[1]]
+def testar_menor_custo(matriz: Matriz) -> tuple[int, Caminho]:
+    import time
 
-        if custo < custo_minimo:
-            custo_minimo = custo
-            melhor_caminho = cast(Caminho, list(possibilidade))
-    print("Custo mínimo:", custo_minimo)
-    print("Melhor caminho:", melhor_caminho)
-    printar_caminho(matriz, melhor_caminho)
-    return melhor_caminho
+    tempo_inicial = time.time()
+    custo, caminho = menor_custo(matriz)
+    tempo_final = time.time()
+    print("\nMatriz:")
+    for linha in matriz:
+        print(linha)
+    print(f"Custo mínimo: {custo}")
+    print(f"Caminho: {caminho}")
+    printar_caminho(matriz, caminho)
+    print(f"Tempo de execução: {tempo_final - tempo_inicial:.6f} segundos")
+    return custo, caminho
 
 
 def main():
-    caminho_minimo(
-        [
-            [5, 8, 0, 7, 4, 9, 6],
-            [3, 1, 3, 6, 1, 3, 4],
-            [5, 2, 9, 2, 5, 0, 3],
-            [8, 4, 0, 0, 6, 1, 5],
-            [0, 9, 0, 8, 4, 9, 3]
-        ]
-    )
-    # # Testando as funções
-    # lista = [1, 2, 3, 4, 5]
-    # print("Lista original:", lista)
-    # print("Soma:", somar(lista))  # 15
-    # print("Tamanho:", tamanho_lista(lista))  # 5
-    # print("Contém 3?", contem_lista(lista, 3))  # True
-    # print("Posição de 4:", posicao_lista(lista, 4))  # 3
-    # print("Máximo:", maximo_lista(lista))  # 5
-    # print("Lista invertida:", inverter(lista))  # [5, 4, 3, 2, 1]
-    # print("Soma dos pares:", somar_pares(lista))  # 6
+    lista = [1, 2, 3, 4, 5]
+    print("Lista original:", lista)
+    print("Soma:", somar(lista))  # 15
+    print("Tamanho:", tamanho_lista(lista))  # 5
+    print("Contém 3?", contem_lista(lista, 3))  # True
+    print("Posição de 4:", posicao_lista(lista, 4))  # 3
+    print("Máximo:", maximo_lista(lista))  # 5
+    print("Lista invertida:", inverter(lista))  # [5, 4, 3, 2, 1]
+    print("Soma dos pares:", somar_pares(lista))  # 6
+
+    matriz_teste1 = [
+        [5, 8, 0, 7, 4, 9, 6],
+        [3, 1, 3, 6, 1, 3, 4],
+        [5, 2, 9, 2, 5, 0, 3],
+        [8, 4, 0, 0, 6, 1, 5],
+        [0, 9, 0, 8, 4, 9, 3],
+    ]
+    matriz_teste2 = gerar_matriz(10, 15)
+    testar_menor_custo(matriz_teste1)
+    testar_menor_custo(matriz_teste2)
 
 
 if __name__ == "__main__":
